@@ -15,7 +15,7 @@
 
 <BBox>:
     size_hint:1,1
-    background_color:1,1,1,1
+    background_color:0,1,0,1
 
 <StatusBar@BoxLayout>:
     toggle_mark:_toggle_mark
@@ -42,12 +42,15 @@
         
 <PlayArea>:
     size_hint:1,1
+    cols:4
+    rows:4
 
 
 <FindBWidget>:
     play_area:_play_area
     status_bar:_status_bar
     
+    background_color:0,1,0,1
     orientation:'vertical'
     StatusBar:
         id:_status_bar
