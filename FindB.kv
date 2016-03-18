@@ -1,0 +1,44 @@
+#:kivy 1.9.1
+#:import Rectangle kivy.graphics.Rectangle
+
+<BBox>:
+    size_hint:1,1
+    on_press:self.MarkB() if app.root.status_bar.toggle_mark.state=='down' else self.Clear()
+    #bg_rect:Rectangle(source='flag.png',pos=self.pos, size=self.size)
+
+<StatusBar@BoxLayout>:
+    toggle_mark:_toggle_mark
+    background_color:0.1,0.1,0.1,1
+    size_hint:1,None
+    height:40
+    label_score:_label_score
+    label_level:_label_level
+    Button:
+        text:'Restart'
+        on_press:app.root.Restart()
+    Button:
+        text:'Show All'
+        on_press:app.root.ShowAll()
+    Label:
+        id:_label_score
+        text:'S:0'
+    Label:
+        id:_label_level
+        text:'L:0'
+    ToggleButton:
+        id:_toggle_mark
+        text:'Mark'
+        
+<PlayArea>:
+    size_hint:1,1
+
+
+<FindBWidget>:
+    play_area:_play_area
+    status_bar:_status_bar
+    
+    orientation:'vertical'
+    StatusBar:
+        id:_status_bar
+    PlayArea:
+        id:_play_area
