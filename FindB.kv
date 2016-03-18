@@ -1,10 +1,21 @@
 #:kivy 1.9.1
 #:import Rectangle kivy.graphics.Rectangle
 
+<BButton>:
+    image:_image
+    size_hint:1,1
+    Image:
+        id:_image
+        opacity:0
+        source:'flag.png'
+        size_hint:None,None
+        size:root.size
+        pos:root.pos
+    
+
 <BBox>:
     size_hint:1,1
-    on_press:self.MarkB() if app.root.status_bar.toggle_mark.state=='down' else self.Clear()
-    #bg_rect:Rectangle(source='flag.png',pos=self.pos, size=self.size)
+    background_color:1,1,1,1
 
 <StatusBar@BoxLayout>:
     toggle_mark:_toggle_mark
