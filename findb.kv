@@ -11,15 +11,26 @@
         size_hint:None,None
         size:root.size
         pos:root.pos
-    
+<BLabel>:
+    canvas:
+        Color:
+            rgba: 0.5, 0.5, 0.5, 1
+        Line:
+            points:self.x,self.y,self.x+self.width,self.y
+        Line:
+            points:self.x,self.y,self.x,self.y+self.height
+        Line:
+            points:self.x,self.y+self.height,self.x+self.width,self.y+self.height
+        Line:
+            points:self.x+self.width,self.y,self.x+self.width,self.y+self.height
+            
 
 <BBox>:
     size_hint:1,1
-    background_color:0,1,0,1
 
 <StatusBar@BoxLayout>:
     toggle_mark:_toggle_mark
-    background_color:0.1,0.1,0.1,1
+    show_all:_show_all
     size_hint:1,None
     height:40
     label_score:_label_score
@@ -29,6 +40,7 @@
         on_press:app.root.Restart()
     Button:
         text:'Show All'
+        id:_show_all
         on_press:app.root.ShowAll()
     Label:
         id:_label_score
