@@ -12,8 +12,12 @@ from kivy.uix.relativelayout import RelativeLayout
 from kivy.properties import ObjectProperty, NumericProperty, BooleanProperty,StringProperty
 from kivy.uix.label import Label
 from kivy.uix.image import Image
+from kivy.core.audio import Sound, SoundLoader
+from time import clock
+import json
 
-Rows_For_First_Level = 8
+
+Rows_For_First_Level = 3
 
 class BButton(Button):
     def __init__(self,box,**kwargs):
@@ -25,6 +29,9 @@ class BButton(Button):
         self.press()
 
     def press(self):
+        if self.box.root.gameover:
+            return
+        
         self.isMarking = self.box.root.status_bar.toggle_mark.state=='down'
 
         if self.isMarking:
@@ -34,15 +41,26 @@ class BButton(Button):
                 self.MarkB()
         else:
             self.box.Clear()
-            self.box.state = -1
 
     def MarkB(self):
         self.image.opacity = 1
         self.box.state=1
+        
+        if self.box.root.mute == False:
+            self.box.root.sounds['state'].play()
+        
+        if self.box.root.gameover == False:
+            self.box.root.bfound += 1
 
     def MarkNormal(self):
         self.image.opacity = 0
         self.box.state=0
+        
+        if self.box.root.mute == False:
+            self.box.root.sounds['state'].play()
+            
+        if self.box.root.gameover == False:
+            self.box.root.bfound -= 1
 
 class BLabel(Label):
     pass
@@ -86,28 +104,36 @@ class BBox(RelativeLayout):
         '''
         triggered when user click the button and think it's empty or has a number
         '''
-        if self.isBomb:
+        if self.isBomb and self.state==0:
             '''
             A Bomb, game over
             '''
             if isShowAll == False:
-                self.Explode()
                 self.root.GameOver()
+                self.Explode()
+                self.bbutton.image.source='gameoverflag.png'
         else:
             self.MarkNumberOrEmpty()
+            
+        self.root.CheckSucceed()
 
 
     def Explode(self):
         '''
         Animation needed
-        '''
+        '''  
+        if self.root.mute == False:
+            self.root.sounds['bomb'].play()
+            
         self.root.ShowAll()
-        pass
     
     def MarkNumberOrEmpty(self):
         '''
         Not only mark itself as empty, also mark all around boxes if they are empty
         '''
+        if self.state == 1:
+            return
+        
         if self.BNumber == 0 and self.isClear == False:
             self.clear_widgets()
             self.add_widget(self.blabel)
@@ -126,6 +152,11 @@ class BBox(RelativeLayout):
             self.clear_widgets()
             self.add_widget(self.blabel)
             self.isClear = True
+            
+        self.state = -1
+        
+        if self.root.mute == False:
+            self.root.sounds['state'].play()
        
     
 class PlayArea(GridLayout):
@@ -133,22 +164,44 @@ class PlayArea(GridLayout):
 
 class FindBWidget(BoxLayout):
     level=NumericProperty(1)
-    scrore=NumericProperty(0)
+    bfound = NumericProperty(0)
+    bnumber = NumericProperty(0)
     
     def __init__(self,**kwargs):
         super(FindBWidget,self).__init__(**kwargs)
         self.BBoxList=[]
-        self.gridSize = 4
+        self.gridSize = 0
+        self.bnumber = 0
+        self.badded = 0
+        self.bfound = 0
+        self.mute=True
+        self.gameover = False
+        
+        self.sounds = {'bomb':SoundLoader.load('bomb.wav'),
+                       'state':SoundLoader.load('state.wav'),
+                       'upgrade':SoundLoader.load('upgrade.wav')}
+        
+        self.start_clock = clock()
+        self.config = None
         
     def on_level(self,instance,value):
         self.status_bar.label_level.text = 'L:{}'.format(self.level)
         
-    def on_score(self,instance,value):
-        self.status_bar.label_score.text = 'S:{}'.format(self.score)
+    def on_bfound(self,instance,value):
+        self.status_bar.label_left_bomb.text = '{}'.format(self.bnumber - self.bfound)
+        self.CheckSucceed()
+
+    def on_bnumber(self,instance,value):
+        self.status_bar.label_left_bomb.text = '{}'.format(self.bnumber - self.bfound)
 
     def Restart(self):
         self.BBoxList = []
         self.gridSize = self.level + Rows_For_First_Level
+        self.bnumber = 0
+        self.badded = 0
+        self.bfound = 0
+        self.start_clock = clock()
+        self.gameover = False
         self.play_area.clear_widgets()
         self.play_area.cols = self.gridSize
         self.play_area.rows = self.gridSize
@@ -163,9 +216,9 @@ class FindBWidget(BoxLayout):
         
         self._calculate_bombs()
         
-        self.status_bar.show_all.disable = False
         self.status_bar.toggle_mark.disable = False
-                
+        self.status_bar.button_reset.image.source='smile.png'
+
                 
     def _calculate_bombs(self):
         if self.level < 6:
@@ -186,7 +239,7 @@ class FindBWidget(BoxLayout):
             if self._add_bomb():
                 self.badded += 1
                 
-            if self.badded > self.bnumber:
+            if self.badded >= self.bnumber:
                 break
                 
         for i in range(0,len(self.BBoxList)):
@@ -199,7 +252,6 @@ class FindBWidget(BoxLayout):
             return False
         else:
             self.BBoxList[i].isBomb = True
-            print i
             return True
         
     def CheckBomb(self,row,col):
@@ -229,15 +281,72 @@ class FindBWidget(BoxLayout):
                self.BBoxList[i].bbutton.MarkB()
             else:
                 self.BBoxList[i].Clear()
+                
+    def CheckSucceed(self):
+        if self.bfound > 0 and self.bfound == self.bnumber:
+            for i in range(0,len(self.BBoxList)):
+                if self.BBoxList[i].state == 0:
+                    return False
+            
+            #upgrade level  
+            if self.mute == False:
+                self.sounds['upgrade'].play()
+            
+            
+            duraton = (clock() - self.start_clock)/10000
+            self.config.set('UserData','CurrentLevel',self.level + 1)
+            print self.config.get('UserData','CurrentLevel')
+            levels = json.loads(self.config.get('UserData','Levels'))
+            print levels
+            #levels[self.level] = round(duraton,2)
+            #self.config.set('UserData','Levels',json.dump([levels]))
+
+            self.level += 1
+            self.Restart()
+            
+            return True
+        else:
+            return False
     
     def GameOver(self):
-        self.status_bar.show_all.disable = True
         self.status_bar.toggle_mark.disable = True
+        self.status_bar.button_reset.image.source='gameover.png'
+        self.gameover = True
     
 class FindBApp(App): 
+    use_kivy_settings = False
     def build(self):
-        return FindBWidget()
-
+        findb = FindBWidget()
+        findb.config = self.config
+        findb.Restart() 
+        return findb
+    
+    def build_config(self, config):
+        config.setdefaults('SystemConfig',{
+                                          'Mute':True
+                                          }
+                          )
+        config.setdefaults('UserData',{
+                                          'CurrentLevel':1,
+                                          'Levels':'[{1:0}]'
+                                          }
+                          )
+        
+    def build_settings(self, settings):
+        jsondata = """[
+                        { "type": "bool",
+                        "title": "Mute",
+                        "desc": "Play without sound",
+                        "section": "SystemConfig",
+                        "key": "Mute"}
+                    ]"""
+        settings.add_json_panel('Poker80',self.config,data=jsondata)
+            
+    def on_config_change(self, config, section, key, value):
+        if config is self.config:
+            token = (section, key)
+            if token == ('SystemConfig', 'Mute'):
+                self.root.mute = (value == '1')
 
 if __name__ == '__main__':
     FindBApp().run()

@@ -9,8 +9,10 @@
         opacity:0
         source:'flag.png'
         size_hint:None,None
+        pos_hint:None,None
         size:root.size
         pos:root.pos
+
 <BLabel>:
     canvas:
         Color:
@@ -28,34 +30,52 @@
 <BBox>:
     size_hint:1,1
 
-<StatusBar@BoxLayout>:
+<ResetButton@Button>:
+    image:_image
+    size_hint:None,1
+    Image:
+        id:_image
+        opacity:1
+        source:'smile.png'
+        size_hint:None,None
+        pos_hint:None,None
+        size:root.size
+        pos:root.pos
+
+
+<StatusBar@RelativeLayout>:
     toggle_mark:_toggle_mark
-    show_all:_show_all
+    button_reset:_button_reset
+    label_left_bomb:_label_left_bomb
+    label_level:_label_level
     size_hint:1,None
     height:40
-    label_score:_label_score
-    label_level:_label_level
-    Button:
-        text:'Restart'
-        on_press:app.root.Restart()
-    Button:
-        text:'Show All'
-        id:_show_all
-        on_press:app.root.ShowAll()
     Label:
-        id:_label_score
-        text:'S:0'
+        id:_label_left_bomb
+        size_hint:None,1
+        width:100
+        x:0
+        text:'0'
     Label:
         id:_label_level
-        text:'L:0'
+        size_hint:None,1
+        width:60
+        x:root.x + 100
+        text:'Level:1'
+    ResetButton:
+        id:_button_reset
+        width:60
+        x:root.x + (root.width - self.width)/2
+        on_press:app.root.Restart()
     ToggleButton:
         id:_toggle_mark
+        size_hint:None,1
+        width:60
+        x:root.x + root.width - self.width
         text:'Mark'
         
 <PlayArea>:
     size_hint:1,1
-    cols:4
-    rows:4
 
 
 <FindBWidget>:
