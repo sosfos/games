@@ -14,6 +14,12 @@
         pos:root.pos
 
 <BLabel>:
+    canvas.before:
+        Color:
+            rgba: 0.2, 0.3, 0.4, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
     canvas:
         Color:
             rgba: 0.5, 0.5, 0.5, 1
@@ -67,10 +73,16 @@
         width:60
         x:root.x + (root.width - self.width)/2
         on_press:app.root.Restart()
+    Button:
+        text:'...'
+        size_hint:None,1
+        width:30
+        x:root.x + root.width - self.width - _toggle_mark.width
+        on_press:app.open_settings()
     ToggleButton:
         id:_toggle_mark
         size_hint:None,1
-        width:60
+        width:80
         x:root.x + root.width - self.width
         text:'Mark'
         

@@ -14,10 +14,13 @@ from kivy.uix.label import Label
 from kivy.uix.image import Image
 from kivy.core.audio import Sound, SoundLoader
 from time import clock
-import json
+import ast
+import re
+from kivy.storage.jsonstore import JsonStore
 
 
-Rows_For_First_Level = 3
+Rows_For_First_Level = 6
+Max_Level = 15
 
 class BButton(Button):
     def __init__(self,box,**kwargs):
@@ -170,23 +173,26 @@ class FindBWidget(BoxLayout):
     def __init__(self,**kwargs):
         super(FindBWidget,self).__init__(**kwargs)
         self.BBoxList=[]
-        self.gridSize = 0
+        self.store = JsonStore("findb.json")
+        self.gridSize_height = 0
+        self.gridSize_width = 0
         self.bnumber = 0
         self.badded = 0
         self.bfound = 0
         self.mute=True
         self.gameover = False
+        self.custimize = False
+        self.custimize_height = 0
+        self.custimize_width = 0
+        self.custimize_brate = 0.2
         
         self.sounds = {'bomb':SoundLoader.load('bomb.wav'),
                        'state':SoundLoader.load('state.wav'),
-                       'upgrade':SoundLoader.load('upgrade.wav')}
+                       'upgrade':SoundLoader.load('upgrade.mp3')}
         
         self.start_clock = clock()
         self.config = None
-        
-    def on_level(self,instance,value):
-        self.status_bar.label_level.text = 'L:{}'.format(self.level)
-        
+                
     def on_bfound(self,instance,value):
         self.status_bar.label_left_bomb.text = '{}'.format(self.bnumber - self.bfound)
         self.CheckSucceed()
@@ -195,19 +201,40 @@ class FindBWidget(BoxLayout):
         self.status_bar.label_left_bomb.text = '{}'.format(self.bnumber - self.bfound)
 
     def Restart(self):
+        self.custimize,self.custimize_height,self.custimize_width,self.custimize_brate = self.get_customize_info()
+        self.level,self.levels_info = self.get_level_info()
         self.BBoxList = []
-        self.gridSize = self.level + Rows_For_First_Level
+                
+        if self.custimize == True:
+            self.status_bar.label_level.text = 'L:C'
+            self.gridSize_height = self.custimize_height
+            self.gridSize_width = self.custimize_width
+            
+            if self.gridSize_height < 5:
+                self.gridSize_height = 5
+            if self.gridSize_width < 5:
+                self.gridSize_width = 5
+            if self.gridSize_height > 50:
+                self.gridSize_height = 50
+            if self.gridSize_width > 50:
+                self.gridSize_width = 50
+        else:
+            self.status_bar.label_level.text = 'L:{}'.format(self.level)
+            self.gridSize_width = self.level + Rows_For_First_Level
+            self.gridSize_height = self.level + Rows_For_First_Level
+            
+        
         self.bnumber = 0
         self.badded = 0
         self.bfound = 0
         self.start_clock = clock()
         self.gameover = False
         self.play_area.clear_widgets()
-        self.play_area.cols = self.gridSize
-        self.play_area.rows = self.gridSize
+        self.play_area.cols = self.gridSize_width
+        self.play_area.rows = self.gridSize_height
         
-        for i in range(0,self.gridSize):
-            for j in range(0,self.gridSize):
+        for i in range(0,self.gridSize_height):
+            for j in range(0,self.gridSize_width):
                 b = BBox(root=self)
                 b.row=i
                 b.col=j
@@ -217,11 +244,18 @@ class FindBWidget(BoxLayout):
         self._calculate_bombs()
         
         self.status_bar.toggle_mark.disable = False
+        self.status_bar.toggle_mark.state = "normal"
         self.status_bar.button_reset.image.source='smile.png'
 
                 
     def _calculate_bombs(self):
-        if self.level < 6:
+        if self.custimize:
+            self.brate = self.custimize_brate/100.0
+            if self.brate < 0.05:
+                self.brate = 0.05
+            if self.brate > 0.8:
+                self.brate = 0.8
+        elif self.level < 6:
             self.brate = 0.11
         elif self.level < 11:
             self.brate = 0.13
@@ -232,7 +266,7 @@ class FindBWidget(BoxLayout):
         else:
             self.brate = 0.2
             
-        self.bnumber = int(self.brate * self.gridSize * self.gridSize)
+        self.bnumber = int(self.brate * self.gridSize_width * self.gridSize_height)
         
         self.badded = 0
         while True:
@@ -255,20 +289,20 @@ class FindBWidget(BoxLayout):
             return True
         
     def CheckBomb(self,row,col):
-        if row < 0 or row >= self.gridSize or col < 0 or col >= self.gridSize:
+        if row < 0 or row >= self.gridSize_width or col < 0 or col >= self.gridSize_height:
             return False
         
-        index = row*self.gridSize + col
+        index = row*self.gridSize_width + col
         if index < 0 or index >= len(self.BBoxList):
             return False
         
         return self.BBoxList[index].isBomb
     
     def Clear(self,row,col):
-        if row < 0 or row >= self.gridSize or col < 0 or col >= self.gridSize:
+        if row < 0 or row >= self.gridSize_width or col < 0 or col >= self.gridSize_height:
             return
         
-        index = row*self.gridSize + col
+        index = row*self.gridSize_width + col
         if index < 0 or index >= len(self.BBoxList):
             return
         
@@ -293,21 +327,37 @@ class FindBWidget(BoxLayout):
                 self.sounds['upgrade'].play()
             
             
-            duraton = (clock() - self.start_clock)/10000
-            self.config.set('UserData','CurrentLevel',self.level + 1)
-            print self.config.get('UserData','CurrentLevel')
-            levels = json.loads(self.config.get('UserData','Levels'))
-            print levels
-            #levels[self.level] = round(duraton,2)
-            #self.config.set('UserData','Levels',json.dump([levels]))
+            duration = round((clock() - self.start_clock),2)
+            
+            if self.level < Max_Level:
+                self.level += 1
+            
+            
+            if self.levels_info["{}".format(self.level)] > duration:
+                self.level_info["{}".format(self.level)] = duration
+            
+            if self.custimize == False:
+                self.store_user_data(self.level,self.levels_info)
 
-            self.level += 1
             self.Restart()
             
             return True
         else:
             return False
     
+    
+    def get_level_info(self):
+        if self.store.exists("UserData") == False:
+            self.store.put("UserData",CurrentLevel=1,Levels={1:0})
+        
+        return self.store.get("UserData")["CurrentLevel"],self.store.get("UserData")["Levels"]
+    
+    def get_customize_info(self):
+       return self.config.get('Customization','Enable') == '1',self.config.getint('Customization','C_Height'),self.config.getint('Customization','C_Width'),self.config.getint('Customization','Rate')
+
+    def store_user_data(self,currentLevel,levels):
+        self.store.put("UserData",CurrentLevel=currentLevel,Levels=levels)
+        
     def GameOver(self):
         self.status_bar.toggle_mark.disable = True
         self.status_bar.button_reset.image.source='gameover.png'
@@ -315,38 +365,100 @@ class FindBWidget(BoxLayout):
     
 class FindBApp(App): 
     use_kivy_settings = False
+    clearcolor = (0.2, 0.2, 0.2, 1)
+    title = 'Find Bombs'
     def build(self):
         findb = FindBWidget()
         findb.config = self.config
         findb.Restart() 
         return findb
-    
-    def build_config(self, config):
-        config.setdefaults('SystemConfig',{
-                                          'Mute':True
-                                          }
-                          )
-        config.setdefaults('UserData',{
-                                          'CurrentLevel':1,
-                                          'Levels':'[{1:0}]'
-                                          }
-                          )
         
+    def build_config(self, config):
+        try:
+            config.get('Sounds','Mute')
+        except:
+            config.setdefaults('Sounds',{
+                                              'Mute':True
+                                              }
+                              )
+            
+        try:
+            config.get('Customization','Rate')
+        except:
+            config.setdefaults('Customization',{
+                                                'Enable':False,
+                                              'C_Height':10,
+                                              'C_Width':10,
+                                              'Rate':20,
+                                              'FullScreen':False
+                                              }
+                              )
+
     def build_settings(self, settings):
         jsondata = """[
+                        {"type":"title",
+                        "title":"Sounds"
+                        },
                         { "type": "bool",
                         "title": "Mute",
                         "desc": "Play without sound",
-                        "section": "SystemConfig",
-                        "key": "Mute"}
+                        "section": "Sounds",
+                        "key": "Mute"},
+                        
+                        {"type":"title",
+                        "title":"Customize Boxes"
+                        },
+                        { "type": "bool",
+                        "title": "Customize",
+                        "desc": "Play your own customization",
+                        "section": "Customization",
+                        "key": "Enable"},
+                        
+                        { "type": "numeric",
+                        "title": "Height",
+                        "desc": "How many box you want as height",
+                        "section": "Customization",
+                        "key": "C_Height" },
+                        
+                        { "type": "numeric",
+                        "title": "Width",
+                        "desc": "How many box you want as width",
+                        "section": "Customization",
+                        "key": "C_Width" },
+                        
+                        { "type": "numeric",
+                        "title": "Rate of Bomb",
+                        "desc": "How many bomb you will have in percentage",
+                        "section": "Customization",
+                        "key": "Rate" },
+                        
+                        
+                        {"type":"title",
+                        "title":"Full Screen"
+                        },
+                        { "type": "bool",
+                        "title": "Full Screen",
+                        "section": "Customization",
+                        "key": "FullScreen"}
                     ]"""
-        settings.add_json_panel('Poker80',self.config,data=jsondata)
+        settings.add_json_panel('Find Bomb',self.config,data=jsondata)
             
     def on_config_change(self, config, section, key, value):
         if config is self.config:
             token = (section, key)
-            if token == ('SystemConfig', 'Mute'):
+            if token == ('Sounds', 'Mute'):
                 self.root.mute = (value == '1')
-
+            elif token == ('Customization','Enable'):
+                self.root.customize = (value == '1')
+            elif token == ('Customization','C_Height'):
+                self.root.customize_height = value
+            elif token == ('Customization','C_Width'):
+                self.root.customize_width = value
+            elif token == ('Customization','Rate'):
+                self.root.customize_rate = value
+            elif token == ('Customization','FullScreen'):
+                Window.toggle_fullscreen()
+                
 if __name__ == '__main__':
-    FindBApp().run()
+    fapp = FindBApp()
+    fapp.run()
