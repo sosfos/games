@@ -17,6 +17,7 @@ from time import clock
 import ast
 import re
 from kivy.storage.jsonstore import JsonStore
+from kivy.core.window import Window
 
 
 Rows_For_First_Level = 6
@@ -203,6 +204,8 @@ class FindBWidget(BoxLayout):
     def Restart(self):
         self.custimize,self.custimize_height,self.custimize_width,self.custimize_brate = self.get_customize_info()
         self.level,self.levels_info = self.get_level_info()
+        self.mute = self.get_mute_info()
+        
         self.BBoxList = []
                 
         if self.custimize == True:
@@ -327,16 +330,15 @@ class FindBWidget(BoxLayout):
                 self.sounds['upgrade'].play()
             
             
-            duration = round((clock() - self.start_clock),2)
-            
-            if self.level < Max_Level:
-                self.level += 1
-            
-            
-            if self.levels_info["{}".format(self.level)] > duration:
-                self.level_info["{}".format(self.level)] = duration
-            
             if self.custimize == False:
+                duration = round((clock() - self.start_clock),2)
+                
+                if self.level < Max_Level:
+                    self.level += 1
+            
+                if self.levels_info[self.level] > duration:
+                    self.level_info[self.level] = duration
+                    
                 self.store_user_data(self.level,self.levels_info)
 
             self.Restart()
@@ -351,6 +353,8 @@ class FindBWidget(BoxLayout):
             self.store.put("UserData",CurrentLevel=1,Levels={1:0})
         
         return self.store.get("UserData")["CurrentLevel"],self.store.get("UserData")["Levels"]
+    def get_mute_info(self):
+        return self.config.get('Sounds','Mute') == '1'
     
     def get_customize_info(self):
        return self.config.get('Customization','Enable') == '1',self.config.getint('Customization','C_Height'),self.config.getint('Customization','C_Width'),self.config.getint('Customization','Rate')
