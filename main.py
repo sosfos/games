@@ -20,7 +20,7 @@ from kivy.storage.jsonstore import JsonStore
 from kivy.core.window import Window
 
 
-Rows_For_First_Level = 6
+Rows_For_First_Level = 3
 Max_Level = 15
 
 class BButton(Button):
@@ -318,26 +318,29 @@ class FindBWidget(BoxLayout):
                self.BBoxList[i].bbutton.MarkB()
             else:
                 self.BBoxList[i].Clear()
-                
+
     def CheckSucceed(self):
         if self.bfound > 0 and self.bfound == self.bnumber:
             for i in range(0,len(self.BBoxList)):
                 if self.BBoxList[i].state == 0:
                     return False
-            
+
             #upgrade level  
             if self.mute == False:
                 self.sounds['upgrade'].play()
             
             
             if self.custimize == False:
-                duration = round((clock() - self.start_clock),2)
-                
+                duration = round((clock() - self.start_clock),2)                
+            
+                if self.levels_info.has_key(self.level) and self.levels_info[self.level] > 0:
+                    if self.levels_info[self.level] > duration:
+                        self.levels_info[self.level] = duration
+                else:
+                    self.levels_info[self.level] = duration
+                    
                 if self.level < Max_Level:
                     self.level += 1
-            
-                if self.levels_info[self.level] > duration:
-                    self.level_info[self.level] = duration
                     
                 self.store_user_data(self.level,self.levels_info)
 
@@ -346,8 +349,7 @@ class FindBWidget(BoxLayout):
             return True
         else:
             return False
-    
-    
+        
     def get_level_info(self):
         if self.store.exists("UserData") == False:
             self.store.put("UserData",CurrentLevel=1,Levels={1:0})
