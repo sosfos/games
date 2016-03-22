@@ -352,7 +352,7 @@ class FindBWidget(BoxLayout):
         
     def get_level_info(self):
         if self.store.exists("UserData") == False:
-            self.store.put("UserData",CurrentLevel=1,Levels={1:0})
+            self.store.put("UserData",CurrentLevel=1,Levels={})
         
         return self.store.get("UserData")["CurrentLevel"],self.store.get("UserData")["Levels"]
     def get_mute_info(self):
