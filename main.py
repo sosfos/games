@@ -18,6 +18,7 @@ import ast
 import re
 from kivy.storage.jsonstore import JsonStore
 from kivy.core.window import Window
+import copy
 
 
 Rows_For_First_Level = 3
@@ -70,6 +71,7 @@ class BLabel(Label):
     pass
 
 class BBox(RelativeLayout):
+    BNumber = NumericProperty(0)
     def __init__(self,root,**kwargs):
         super(BBox,self).__init__(**kwargs)
         self.isBomb = False
@@ -85,24 +87,8 @@ class BBox(RelativeLayout):
         
         self.add_widget(self.bbutton)
         
-    def CalculateBNumber(self):
-        self.BNumber = 0
-        if self.isBomb == False:
-            self.BNumber += 1 if self.root.CheckBomb(self.row - 1,self.col - 1) else 0
-            self.BNumber += 1 if self.root.CheckBomb(self.row - 1,self.col) else 0
-            self.BNumber += 1 if self.root.CheckBomb(self.row - 1,self.col + 1) else 0
-            self.BNumber += 1 if self.root.CheckBomb(self.row,self.col - 1) else 0
-            self.BNumber += 1 if self.root.CheckBomb(self.row,self.col + 1) else 0
-            self.BNumber += 1 if self.root.CheckBomb(self.row + 1,self.col - 1) else 0
-            self.BNumber += 1 if self.root.CheckBomb(self.row + 1,self.col) else 0
-            self.BNumber += 1 if self.root.CheckBomb(self.row + 1,self.col + 1) else 0
-
-            self.blabel.text = '{}'.format(self.BNumber) if self.BNumber > 0 else ''
-        else:
-            self.blabel.text='*'
-    
-    
-
+    def on_BNumber(self,instance,value):
+        self.blabel.text = '{}'.format(value) if value > 0 else ''
     
     def Clear(self,isShowAll=False):
         '''
@@ -224,8 +210,7 @@ class FindBWidget(BoxLayout):
         else:
             self.status_bar.label_level.text = 'L:{}'.format(self.level)
             self.gridSize_width = self.level + Rows_For_First_Level
-            self.gridSize_height = self.level + Rows_For_First_Level
-            
+            self.gridSize_height = self.level + Rows_For_First_Level            
         
         self.bnumber = 0
         self.badded = 0
@@ -250,7 +235,6 @@ class FindBWidget(BoxLayout):
         self.status_bar.toggle_mark.state = "normal"
         self.status_bar.button_reset.image.source='smile.png'
 
-                
     def _calculate_bombs(self):
         if self.custimize:
             self.brate = self.custimize_brate/100.0
@@ -278,29 +262,42 @@ class FindBWidget(BoxLayout):
                 
             if self.badded >= self.bnumber:
                 break
-                
-        for i in range(0,len(self.BBoxList)):
-            self.BBoxList[i].CalculateBNumber()
-    
+
     def _add_bomb(self):
+        if len(self.BBoxList) <=0:
+            return
+        
         i = Random().randint(0,len(self.BBoxList) - 1)
         
         if self.BBoxList[i].isBomb:
             return False
         else:
             self.BBoxList[i].isBomb = True
-            return True
-        
-    def CheckBomb(self,row,col):
+            #set bomb number of the around boxes
+            row = self.BBoxList[i].row
+            col = self.BBoxList[i].col            
+
+            self._add_bomb_number(row - 1,col - 1)
+            self._add_bomb_number(row - 1,col)
+            self._add_bomb_number(row - 1,col + 1)                
+            self._add_bomb_number(row,col - 1)
+            self._add_bomb_number(row,col + 1)
+            self._add_bomb_number(row + 1,col - 1)
+            self._add_bomb_number(row + 1,col)
+            self._add_bomb_number(row + 1,col + 1)
+                    
+        return True
+    def _add_bomb_number(self,row,col):
         if row < 0 or row >= self.gridSize_width or col < 0 or col >= self.gridSize_height:
-            return False
+            return
         
         index = row*self.gridSize_width + col
         if index < 0 or index >= len(self.BBoxList):
-            return False
+            return
         
-        return self.BBoxList[index].isBomb
+        self.BBoxList[index].BNumber += 1
     
+        
     def Clear(self,row,col):
         if row < 0 or row >= self.gridSize_width or col < 0 or col >= self.gridSize_height:
             return
@@ -373,12 +370,19 @@ class FindBApp(App):
     use_kivy_settings = False
     clearcolor = (0.2, 0.2, 0.2, 1)
     title = 'Find Bombs'
-    def build(self):
+    def build(self):        
         findb = FindBWidget()
         findb.config = self.config
         findb.Restart() 
         return findb
+    
+    def on_pause(self):
+        return True
+    
+    def on_resume(self):
+        pass
         
+    
     def build_config(self, config):
         try:
             config.get('Sounds','Mute')
